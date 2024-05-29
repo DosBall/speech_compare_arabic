@@ -4,6 +4,8 @@ import librosa
 from librosa import feature
 import argparse
 import os, time
+from flask import Flask
+from flask import request
 
 target_sr = 22050
 top_db1 = 20
@@ -140,9 +142,9 @@ def test1dir(my_path):
             #pred, vec = make_predictions3(trained_model17, my_path + "/" + i, 20)
 
             pred, vec, vec1 = int(pred[0]), vec[0], np.sort(np.copy(vec))[0][::-1]
-            #print("mffc  real:", i, "pred:", pred + 1, d_arab[pred], d_ru[pred])
-            #print(vec)
-            #print(vec1)
+            print("mffc  real:", i, "pred:", pred + 1, d_arab[pred], d_ru[pred])
+            print(vec)
+            print(vec1)
             temp1 = str(vec[int(i[:3]) - 1])
             j = 1
             while temp1 != str(vec1[j - 1]):
@@ -206,9 +208,11 @@ def test_dirs(*dirs):
 
 
 #print(test1("arab/001-alif.mp3", make_predictions4, trained_model10, 100, 0))
-print(test_models("arab/001-alif.mp3", 0))
+#print(test_models("arab/001-alif.mp3", 0))
 #print(test_dir(my_path1))
 #test_dirs(my_path1, my_path2, my_path3, my_path4)
+#test1dir(my_path1)
+
 
 """
 test1dir(my_path1)
@@ -226,4 +230,42 @@ if __name__ == "__main__":
     predicted_class_index = make_predictions1(trained_model, args.file[0])
     print("Predicted Label:", predicted_class_index)
 """
+
+
+def test_models1(path1, a=None, k=None):
+    if k is None:
+        k = 4
+    if a is None:
+        temp = path1.rfind("/")
+        if not temp:
+            a = int(path1[:3]) - 1
+        else:
+            a = int(path1[temp + 1:temp + 4]) - 1
+    j1, p1 = test1(path1, make_predictions4, trained_model10, 100, a)
+    j2, p2 = test1(path1, make_predictions3, trained_model8, 20, a)
+    j3, p3 = test1(path1, make_predictions4, trained_model7, 100, a)
+    ans = 1 if j1 <= k or j2 <= k or j3 <= k else 0
+    return ans, [j1, j2, j3], [p1, p2, p3]
+
+app = Flask('__name__')
+
+
+@app.route('/answer', methods=['GET', 'POST'])
+def answer():
+
+    speach_path = request.args.get('speach')
+    letter_num = request.args.get('letter')
+    k = request.args.get('k')
+    if k is not None:
+        k = int(k)
+    if letter_num is not None:
+        letter_num = int(letter_num)
+    #print(speach_path, letter_num, k)
+    ans, j, p = test_models1(speach_path, letter_num, k)
+    return str(ans) + "\nМеста: " + str(j) + "\nПроценты: " + str(p)
+    #return str(ans)
+
+
+app.run(host='0.0.0.0', port=80)
+
 
